@@ -223,11 +223,11 @@ func fetchUsage(token string) (*UsageResponse, error) {
 }
 
 // キャッシュ付きでUsageを取得
-func getUsage() (*UsageResponse, error) {
+func getUsage() (*UsageResponse, time.Time, error) {
 	// キャッシュをチェック
 	cached, err := loadCache()
 	if err == nil && time.Since(cached.FetchedAt) < CacheExpiry {
-		return cached.Usage, nil
+		return cached.Usage, cached.FetchedAt, nil
 	}
 
 	// トークン取得
@@ -237,9 +237,9 @@ func getUsage() (*UsageResponse, error) {
 		if cached != nil {
 			cacheAge := time.Since(cached.FetchedAt)
 			fmt.Fprintf(os.Stderr, "warning: using cached data from %v ago (token error: %v)\n", cacheAge.Round(time.Minute), err)
-			return cached.Usage, nil
+			return cached.Usage, cached.FetchedAt, nil
 		}
-		return nil, err
+		return nil, time.Time{}, err
 	}
 
 	// API呼び出し
@@ -249,17 +249,18 @@ func getUsage() (*UsageResponse, error) {
 		if cached != nil {
 			cacheAge := time.Since(cached.FetchedAt)
 			fmt.Fprintf(os.Stderr, "warning: using cached data from %v ago (API error: %v)\n", cacheAge.Round(time.Minute), err)
-			return cached.Usage, nil
+			return cached.Usage, cached.FetchedAt, nil
 		}
-		return nil, err
+		return nil, time.Time{}, err
 	}
 
 	// キャッシュ保存
+	fetchedAt := time.Now()
 	if err := saveCache(usage); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: failed to save cache: %v\n", err)
 	}
 
-	return usage, nil
+	return usage, fetchedAt, nil
 }
 
 // stdinからClaude Codeの入力を読む
@@ -370,7 +371,7 @@ func main() {
 	}
 
 	// Usage APIからデータ取得
-	usage, usageErr := getUsage()
+	usage, fetchedAt, usageErr := getUsage()
 
 	// 出力を組み立て
 	var parts []string
@@ -406,6 +407,11 @@ func main() {
 		if ctxPct > 0 {
 			parts = append(parts, fmt.Sprintf("Ctx: %.0f%%", ctxPct))
 		}
+	}
+
+	// 更新時刻
+	if !fetchedAt.IsZero() {
+		parts = append(parts, fmt.Sprintf("@%s", fetchedAt.Format("15:04")))
 	}
 
 	// エラーがあり、何も表示できない場合
