@@ -4,16 +4,22 @@ Claude Code用のシンプルなstatuslineツール。Go製で外部依存なし
 
 ## 機能
 
-- **5時間リミット表示** - 使用率と残り時間
-- **週間リミット表示** - 7日間の使用率
-- **Opusリミット表示** - Opus使用時のみ表示
-- **コンテキスト使用量** - 現在のコンテキストウィンドウ使用率
-- **5分キャッシュ** - APIへのリクエストを最小限に
+- **モデル名表示** - 使用中のモデル名を短縮表示
+- **コンテキスト使用量** - コンテキストウィンドウの使用率
+- **セッションコスト** - セッション累計コスト（USD）
+- **セッション時間** - セッション経過時間
+- **行数変更** - 追加/削除行数
+- **後方互換性** - 新旧どちらのClaude Code JSONフォーマットにも対応
 
 ## 表示例
 
 ```
-Opus 4.5 | 5h: 23% (2h45m) | 7d: 45% | Ctx: 12%
+Opus 4.6 | Ctx: 12% | $1.23 | 45m | +150/-30
+```
+
+旧フォーマット（コスト情報なし）：
+```
+Opus 4.5 | Ctx: 12%
 ```
 
 ## インストール
@@ -22,16 +28,16 @@ Opus 4.5 | 5h: 23% (2h45m) | 7d: 45% | Ctx: 12%
 
 ```bash
 # Windows
-GOOS=windows GOARCH=amd64 go build -o claude-statusline.exe
+GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o claude-statusline.exe
 
 # macOS (Intel)
-GOOS=darwin GOARCH=amd64 go build -o claude-statusline
+GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o claude-statusline
 
 # macOS (Apple Silicon)
-GOOS=darwin GOARCH=arm64 go build -o claude-statusline
+GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o claude-statusline
 
 # Linux
-GOOS=linux GOARCH=amd64 go build -o claude-statusline
+GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o claude-statusline
 ```
 
 ### 配置
@@ -62,16 +68,6 @@ GOOS=linux GOARCH=amd64 go build -o claude-statusline
 }
 ```
 
-または絶対パスで：
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "C:\\Users\\YourName\\.claude\\claude-statusline.exe"
-  }
-}
-```
-
 **macOS/Linux:**
 ```json
 {
@@ -84,41 +80,49 @@ GOOS=linux GOARCH=amd64 go build -o claude-statusline
 
 ## 動作確認
 
-コマンドラインから直接実行：
-
 ```bash
-# 単体テスト
-./claude-statusline.exe
+# 新フォーマット（全フィールド）
+echo '{"model":{"display_name":"Claude Opus 4.6"},"context_window":{"used_percentage":0.12},"cost":{"total_cost_usd":1.23,"total_duration_ms":2700000,"total_lines_added":150,"total_lines_removed":30}}' | ./claude-statusline
 
-# Claude Codeの入力をシミュレート
-echo '{"model":{"display_name":"Claude Opus 4.5"},"context_window":{"used_percentage":0.12}}' | ./claude-statusline.exe
+# 旧フォーマット（後方互換性テスト）
+echo '{"model":{"display_name":"Claude Opus 4.5"},"context_window":{"used_percentage":0.12}}' | ./claude-statusline
 ```
 
-## 要件
+## 仕組み
 
-- Claude Codeにログイン済み（`claude --login`）
-- `~/.claude/.credentials.json` が存在すること
+Claude Codeがstdinで送信するJSONデータを解析し、ステータスラインを構築します。
 
-## キャッシュ
+### 入力JSON
 
-Usage APIのレスポンスは5分間キャッシュされます。キャッシュファイル：
+Claude Codeは以下のようなJSONをstdinにパイプします：
 
-- Windows: `%USERPROFILE%\.claude\.statusline-cache.json`
-- macOS/Linux: `~/.claude/.statusline-cache.json`
-
-## トラブルシューティング
-
-### トークンが見つからない
-
-```bash
-claude --login
+```json
+{
+  "model": {
+    "id": "claude-opus-4-6",
+    "display_name": "Claude Opus 4.6"
+  },
+  "context_window": {
+    "used_percentage": 0.12
+  },
+  "cost": {
+    "total_cost_usd": 1.23,
+    "total_duration_ms": 2700000,
+    "total_lines_added": 150,
+    "total_lines_removed": 30
+  }
+}
 ```
 
-でログインしてください。
+### 表示セグメント
 
-### APIエラー
-
-ネットワーク接続を確認してください。エラー時は古いキャッシュがあればそれを使用します。
+| セグメント | 例 | 条件 |
+|-----------|-----|------|
+| モデル名 | `Opus 4.6` | display_nameが存在 |
+| コンテキスト | `Ctx: 12%` | 使用率 > 0% |
+| コスト | `$1.23` | コスト > $0 |
+| セッション時間 | `45m` | 時間 > 0 |
+| 行数変更 | `+150/-30` | 変更がある場合 |
 
 ## ライセンス
 
