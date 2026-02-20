@@ -219,9 +219,6 @@ func main() {
         parts = append(parts, shortenModelName(ccInput.Model.DisplayName))
     }
 
-    // 使用率
-    parts = append(parts, fmt.Sprintf("使用率:%v%%", ccInput.ContextWindow.UsedPercentage))
-
     // コンテキスト使用量
     ctxPct := calculateContextPercentage(ccInput)
     if ctxPct > 0 {
