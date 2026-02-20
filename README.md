@@ -2,18 +2,19 @@
 
 Claude Code用のシンプルなstatuslineツール。Go製で外部依存なし。
 
+Claude Codeがstdin経由でJSONデータを渡してくれるので、APIコールやキャッシュは不要です。
+
 ## 機能
 
-- **5時間リミット表示** - 使用率と残り時間
-- **週間リミット表示** - 7日間の使用率
-- **Opusリミット表示** - Opus使用時のみ表示
-- **コンテキスト使用量** - 現在のコンテキストウィンドウ使用率
-- **5分キャッシュ** - APIへのリクエストを最小限に
+- **モデル名** - 現在使用中のモデルを短縮表示
+- **コンテキスト使用率** - 現在のコンテキストウィンドウ使用率
+- **セッションコスト** - 累積コスト（USD）
+- **セッション時間** - 経過時間
 
 ## 表示例
 
 ```
-Opus 4.5 | 5h: 23% (2h45m) | 7d: 45% | Ctx: 12%
+Sonnet 4.6 | 使用率:12% | Ctx: 12% | $0.42 | 5m
 ```
 
 ## インストール
@@ -84,41 +85,32 @@ GOOS=linux GOARCH=amd64 go build -o claude-statusline
 
 ## 動作確認
 
-コマンドラインから直接実行：
+コマンドラインからClaude Codeの入力をシミュレートして確認：
 
 ```bash
-# 単体テスト
-./claude-statusline.exe
-
-# Claude Codeの入力をシミュレート
-echo '{"model":{"display_name":"Claude Opus 4.5"},"context_window":{"used_percentage":0.12}}' | ./claude-statusline.exe
+echo '{"model":{"display_name":"Claude Sonnet 4.6"},"context_window":{"used_percentage":0.12},"cost":{"total_cost_usd":0.42,"total_duration_ms":300000}}' | ./claude-statusline.exe
 ```
+
+## デバッグモード
+
+デバッグログを有効にするには、フラグファイルを作成します：
+
+**Windows:**
+```
+%USERPROFILE%\.claude\statusline-debug-mode
+```
+
+**macOS/Linux:**
+```
+~/.claude/statusline-debug-mode
+```
+
+ログは同ディレクトリの `statusline-debug.log` に出力されます。
 
 ## 要件
 
-- Claude Codeにログイン済み（`claude --login`）
-- `~/.claude/.credentials.json` が存在すること
-
-## キャッシュ
-
-Usage APIのレスポンスは5分間キャッシュされます。キャッシュファイル：
-
-- Windows: `%USERPROFILE%\.claude\.statusline-cache.json`
-- macOS/Linux: `~/.claude/.statusline-cache.json`
-
-## トラブルシューティング
-
-### トークンが見つからない
-
-```bash
-claude --login
-```
-
-でログインしてください。
-
-### APIエラー
-
-ネットワーク接続を確認してください。エラー時は古いキャッシュがあればそれを使用します。
+- Go 1.18以上（ビルド時のみ）
+- Claude Code（実行時）
 
 ## ライセンス
 
