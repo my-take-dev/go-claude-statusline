@@ -206,12 +206,12 @@ func formatDuration(ms int64) string {
 	return "<1m"
 }
 
-// Unixタイムスタンプ(ミリ秒)からリセットまでの残り時間をフォーマット
-func formatResetTime(resetsAtMs int64) string {
-	if resetsAtMs <= 0 {
+// Unixタイムスタンプ(秒)からリセットまでの残り時間をフォーマット
+func formatResetTime(resetsAtSec int64) string {
+	if resetsAtSec <= 0 {
 		return ""
 	}
-	resetsAt := time.UnixMilli(resetsAtMs)
+	resetsAt := time.Unix(resetsAtSec, 0)
 	remaining := time.Until(resetsAt)
 	if remaining <= 0 {
 		return "now"
@@ -220,7 +220,7 @@ func formatResetTime(resetsAtMs int64) string {
 	hours := int(remaining.Hours()) % 24
 	minutes := int(remaining.Minutes()) % 60
 	if days > 0 {
-		return fmt.Sprintf("%dd%dh", days, hours)
+		return fmt.Sprintf("%dd%dh%dm", days, hours, minutes)
 	}
 	if hours > 0 {
 		return fmt.Sprintf("%dh%dm", hours, minutes)
@@ -293,8 +293,8 @@ func fmtBar(label string, pct float64) string {
 }
 
 // ラベル + brailleバー + リセット時間をフォーマット
-func fmtBarReset(label string, pct float64, resetsAtMs int64) string {
-	rt := formatResetTime(resetsAtMs)
+func fmtBarReset(label string, pct float64, resetsAtSec int64) string {
+	rt := formatResetTime(resetsAtSec)
 	return fmt.Sprintf("%s%s%s %s%s%s %s", ansiDim, label, ansiReset, gradientColor(pct), brailleBar(pct, 8), ansiReset, rt)
 }
 
