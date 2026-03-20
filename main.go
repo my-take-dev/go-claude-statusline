@@ -206,6 +206,31 @@ func formatDuration(ms int64) string {
 	return "<1m"
 }
 
+// Unixタイムスタンプ(ミリ秒)からリセットまでの残り時間をフォーマット
+func formatResetTime(resetsAtMs int64) string {
+	if resetsAtMs <= 0 {
+		return ""
+	}
+	resetsAt := time.UnixMilli(resetsAtMs)
+	remaining := time.Until(resetsAt)
+	if remaining <= 0 {
+		return "now"
+	}
+	days := int(remaining.Hours()) / 24
+	hours := int(remaining.Hours()) % 24
+	minutes := int(remaining.Minutes()) % 60
+	if days > 0 {
+		return fmt.Sprintf("%dd%dh", days, hours)
+	}
+	if hours > 0 {
+		return fmt.Sprintf("%dh%dm", hours, minutes)
+	}
+	if minutes > 0 {
+		return fmt.Sprintf("%dm", minutes)
+	}
+	return "<1m"
+}
+
 // 行数変更をフォーマット
 func formatLines(added, removed int) string {
 	if added == 0 && removed == 0 {
@@ -267,6 +292,12 @@ func fmtBar(label string, pct float64) string {
 	return fmt.Sprintf("%s%s%s %s%s%s %d%%", ansiDim, label, ansiReset, gradientColor(pct), brailleBar(pct, 8), ansiReset, p)
 }
 
+// ラベル + brailleバー + リセット時間をフォーマット
+func fmtBarReset(label string, pct float64, resetsAtMs int64) string {
+	rt := formatResetTime(resetsAtMs)
+	return fmt.Sprintf("%s%s%s %s%s%s %s", ansiDim, label, ansiReset, gradientColor(pct), brailleBar(pct, 8), ansiReset, rt)
+}
+
 func main() {
 	ccInput, inputErr := readClaudeCodeInput()
 	if inputErr != nil {
@@ -316,4 +347,16 @@ func main() {
 
 	sep := fmt.Sprintf(" %s│%s ", ansiDim, ansiReset)
 	fmt.Println(strings.Join(parts, sep))
+
+	// 2段目: レートリミット バー + リセット時間
+	var line2Parts []string
+	if ccInput.RateLimits != nil && ccInput.RateLimits.FiveHour != nil && ccInput.RateLimits.FiveHour.ResetsAt > 0 {
+		line2Parts = append(line2Parts, fmtBarReset("5h", ccInput.RateLimits.FiveHour.UsedPercentage, ccInput.RateLimits.FiveHour.ResetsAt))
+	}
+	if ccInput.RateLimits != nil && ccInput.RateLimits.SevenDay != nil && ccInput.RateLimits.SevenDay.ResetsAt > 0 {
+		line2Parts = append(line2Parts, fmtBarReset("7d", ccInput.RateLimits.SevenDay.UsedPercentage, ccInput.RateLimits.SevenDay.ResetsAt))
+	}
+	if len(line2Parts) > 0 {
+		fmt.Println(strings.Join(line2Parts, sep))
+	}
 }
