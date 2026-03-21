@@ -351,12 +351,24 @@ func main() {
 	// 2段目: レートリミット バー + リセット時間
 	var line2Parts []string
 	if ccInput.RateLimits != nil && ccInput.RateLimits.FiveHour != nil && ccInput.RateLimits.FiveHour.ResetsAt > 0 {
-		line2Parts = append(line2Parts, fmtBarReset("5h", ccInput.RateLimits.FiveHour.UsedPercentage, ccInput.RateLimits.FiveHour.ResetsAt))
+		line2Parts = append(line2Parts, fmtBarReset("5h", progressPercent(ccInput.RateLimits.FiveHour.ResetsAt, 5*3600), ccInput.RateLimits.FiveHour.ResetsAt))
 	}
 	if ccInput.RateLimits != nil && ccInput.RateLimits.SevenDay != nil && ccInput.RateLimits.SevenDay.ResetsAt > 0 {
-		line2Parts = append(line2Parts, fmtBarReset("7d", ccInput.RateLimits.SevenDay.UsedPercentage, ccInput.RateLimits.SevenDay.ResetsAt))
+		line2Parts = append(line2Parts, fmtBarReset("7d", progressPercent(ccInput.RateLimits.SevenDay.ResetsAt, 7*24*3600), ccInput.RateLimits.SevenDay.ResetsAt))
 	}
 	if len(line2Parts) > 0 {
 		fmt.Println(strings.Join(line2Parts, sep))
 	}
+}
+
+func progressPercent(end int64, durationSec int64) float64 {
+	start := end - durationSec
+	now := time.Now().Unix()
+	if now <= start {
+		return 0.0
+	}
+	if now >= end {
+		return 100.0
+	}
+	return float64(now-start) / float64(end-start) * 100.0
 }
